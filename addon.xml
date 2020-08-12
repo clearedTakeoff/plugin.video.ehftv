@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon id="plugin.video.ehftv"
+version="0.0.1"
+name="EHFtv Kodi"
+provider-name="clearedTakeoff">
+<requires>
+  <import addon="xbmc.python" version="2.25.0"/>
+  <import addon="script.module.requests" version="2.22.0"/>
+</requires>
+<extension point="xbmc.python.pluginsource" library="main.py">
+  <provides>video</provides>
+</extension>
+<extension point="xbmc.addon.metadata">
+  <summary lang="en">EHFtv on Kodi</summary>
+  <description lang="en_GB">Watch EHFtv videos on Kodi.</description>
+  <disclaimer lang="en_GB">A free account is required and can be obtained at https://ehftv.com</disclaimer>
+</extension>
+</addon>
