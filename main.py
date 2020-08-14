@@ -4,8 +4,10 @@ from urlparse import parse_qsl
 import xbmcgui
 import xbmcplugin
 import xbmcaddon
+import xbmc
 import requests
 import json
+import video_filtering
 import creds
 import os
 
@@ -23,36 +25,45 @@ def get_categories():
     # Get categories
     return ["Live", "Archive"]
 
+def get_team_list():
+    url = "https://wp-ehf.streamamg.com/wp-json/wpa/v1/common_field?slug=common-fields"
+    resp = json.loads(requests.get(url).content)
+    result = []
+    for club in resp["clubs"]:
+        result.append((club["sponsor_name"], club["name"].encode("utf-8")))
+    return result
+
+def get_comp_list():
+    resp = ["EHF Champions League Men", "EHF Champions League Women", "Men's EHF Euro", "Women's EHF Euro","EHF European League Men", 
+        "EHF European League Women", "EHF European Cup Men", "EHF European Cup Women", "Men's Beach Handball EURO", "Women's Beach Handball EURO"]
+    result = []
+    for comp in resp:
+        result.append((comp, comp))
+    return result
+
 def get_subcategory(category):
     if category == "Live":
         return ["Nothing here at the moment"]
     elif category == "Archive":
-        return ["EHF Champions League Men", "EHF Champions League Women", "Men's EHF Euro", "Women's EHF Euro","EHF European League Men", 
-        "EHF European League Women", "EHF European Cup Men", "EHF European Cup Women", "Men's Beach Handball EURO", "Women's Beach Handball EURO"]
+        return [("Filter by team", "team"), ("Filter by Competition", "comp"), ("Search", "search")]
+    elif category == "comp":
+        return get_comp_list()
+    elif category == "team":
+        return get_team_list()
 
-
-def get_videos(category, page=0):
-    # Find available videos and parse data
-    url = "https://ehf-cm.streamamg.com/api/v1/cb6b9d25-5ab3-467a-a5b7-a662b0ddcb3d/BH9t1g7ARQzD2TgcHm9ZosHSES3ADnSpMv60i4pfRqtcti2MeM/\
-        30b60d3d-7c68-4215-8b5c-b68ef503980f/en/feed/a9364863-def1-4be6-83c1-c91a632b66a4/sections//search?section=3002115e-7aa8-4ecb-\
-            8485-4146612af205&query=(metaData.competition:(" + category + ")%20AND%20metaData.category:(Full%20games))&pageIndex=" + str(page) + "&pageSize=24"
-    result = json.loads(requests.get(url).content)
-    games = []
-    i = 0
-    for entry in result["sections"][0]["itemData"]:
-        #if entry["metaData"]["body"] is not None:
-        body = entry["metaData"]["body"]
-        legacy_date = entry["metaData"]["legacy_date"]
-        new_entry = {
-            "name": body if body is not None else " - ".join(entry["metaData"]["teams"]),
-            "video_id": entry["mediaData"]["entryId"],
-            "date": legacy_date if legacy_date is not None else entry["publicationData"]["releaseFrom"],
-            "thumbnail": entry["mediaData"]["thumbnailUrl"] + "width/600",
-            "genre": category
-        }
-        games.append(new_entry)
-    return games
-
+def list_filtering_options(filter_condition):
+    # List possible filtering options items (competitions/teams under archive section)
+    xbmcplugin.setPluginCategory(_handle, str(filter_condition))
+    xbmcplugin.setContent(_handle, "videos")
+    subcategories = get_subcategory(filter_condition)
+    for s in subcategories:
+        list_item = xbmcgui.ListItem(label=s[0])
+        list_item.setInfo("video", {"title": s[0], "mediatype": "video"})
+        #xbmc.log("name " + s[1], 2)
+        url = get_url(action="listing", filter_condition=filter_condition, value=s[1], page=0)
+        is_folder = True
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    xbmcplugin.endOfDirectory(_handle)
 
 def list_subcategory(category):
     # List subcategory items (competitions under archive section)
@@ -60,10 +71,9 @@ def list_subcategory(category):
     xbmcplugin.setContent(_handle, "videos")
     subcategories = get_subcategory(category)
     for s in subcategories:
-        list_item = xbmcgui.ListItem(label=s)
-        # Maybe add thumbnails?
-        list_item.setInfo("video", {"title": s, "mediatype": "video"})
-        url = get_url(action="listing", category=s, page=0)
+        list_item = xbmcgui.ListItem(label=s[0])
+        list_item.setInfo("video", {"title": s[0], "mediatype": "video"})
+        url = get_url(action="filtering", filter_condition=s[1], page=0)
         is_folder = True
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     xbmcplugin.endOfDirectory(_handle)
@@ -88,11 +98,13 @@ def list_categories():
     xbmcplugin.endOfDirectory(_handle)
 
 
-def list_videos(category, page=0):
+def list_videos(filter_condition, value, page=0):
     # List available videos of a category
-    xbmcplugin.setPluginCategory(_handle, category)
+    xbmcplugin.setPluginCategory(_handle, value)
     xbmcplugin.setContent(_handle, "videos")
-    videos = get_videos(category, page)
+    videos = video_filtering.filter_videos(filter_condition, value, page)
+    #xbmcgui.Dialog().ok("Testing", "Listing videos??")
+
     for video in videos:
         y, m, d = video["date"].split("T")[0].split("-")
         date_string = d + "." + m + "." + y
@@ -109,12 +121,12 @@ def list_videos(category, page=0):
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     list_item = xbmcgui.ListItem(label="Next page")
     list_item.setInfo("video", {"title": "Next page"})
-    url = get_url(action="listing", category=category, page=int(page) + 1)
+    url = get_url(action="listing", filter_condition=filter_condition, value=value, page=int(page) + 1)
     xbmcplugin.addDirectoryItem(_handle, url, list_item, True)
     xbmcplugin.endOfDirectory(_handle)
 
 def obtainKSCookie(content_id, session_cookie):
-    xbmcgui.Dialog().ok("Test", "Getting KS cookie")
+    #xbmcgui.Dialog().ok("Test", "Getting KS cookie")
     url = "https://ehfpayments.streamamg.com/api/v1/session/ksession/?lang=en&entryId=" + content_id + "&apisessionid=" + session_cookie
     user_data = json.loads(requests.get(url).content)
     if user_data["KSession"] is None:
@@ -148,7 +160,7 @@ def play_video(path):
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
 
 def authenticate():
-    xbmcgui.Dialog().ok("Test", "Authenticating")
+    #xbmcgui.Dialog().ok("Test", "Authenticating")
     # Authenticate the user and return user"s cookie
     url = "https://ehfpayments.streamamg.com/api/v1/session/start/?lang=en"
     payload = {"emailaddress": creds.username, "password": creds.password}
@@ -166,11 +178,13 @@ def router(paramstring):
     if params:
         if params["action"] == "listing":
             # List available videos of category
-            list_videos(params["category"], params["page"])
+            list_videos(params["filter_condition"], params["value"], params["page"])
         elif params["action"] == "play":
             play_video(params["video"])
         elif params["action"] == "sublisting":
             list_subcategory(params["category"])
+        elif params["action"] == "filtering":
+            list_filtering_options(params["filter_condition"])
         else:
             raise ValueError("Invalid paramstring: {0}!".format(paramstring))
     else:
