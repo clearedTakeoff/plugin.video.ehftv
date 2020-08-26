@@ -8,7 +8,6 @@ import xbmc
 import requests
 import json
 import video_filtering
-import creds
 import os
 
 _url = sys.argv[0]
@@ -43,7 +42,7 @@ def get_comp_list():
 
 def get_subcategory(category):
     if category == "Live":
-        return ["Nothing here at the moment"]
+        return [("Nothing here at the moment", None)]
     elif category == "Archive":
         return [("Filter by team", "team"), ("Filter by Competition", "comp"), ("Search", "search")]
     elif category == "comp":
@@ -86,15 +85,21 @@ def list_categories():
     categories = get_categories()
     for category in categories:
         list_item = xbmcgui.ListItem(label=category)
-        # TODO: list_item.setArt()...
         list_item.setInfo("video", {"title": category,
                                     "genre": category,
                                     "mediatype": "video"})
-        # TODO: More accurate info
         # Recursion: plugin://plugin.video.ehftv/?action=listing&category=archive
         url = get_url(action="sublisting", category=category)
         is_folder = True
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
+    
+    list_item = xbmcgui.ListItem(label="Settings")
+    list_item.setInfo("video", {"title": "Settings",
+                                "genre": "Settings",
+                                "mediatype": "video"})
+    url = get_url(action="settings")
+    is_folder = False
+    xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     xbmcplugin.endOfDirectory(_handle)
 
 
@@ -126,7 +131,9 @@ def list_videos(filter_condition, value, page=0):
     xbmcplugin.endOfDirectory(_handle)
 
 def obtainKSCookie(content_id, session_cookie):
-    #xbmcgui.Dialog().ok("Test", "Getting KS cookie")
+    # If there's no session cookie credentials are probably wrong
+    if session_cookie is None:
+        return None
     url = "https://ehfpayments.streamamg.com/api/v1/session/ksession/?lang=en&entryId=" + content_id + "&apisessionid=" + session_cookie
     user_data = json.loads(requests.get(url).content)
     if user_data["KSession"] is None:
@@ -160,17 +167,19 @@ def play_video(path):
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
 
 def authenticate():
-    #xbmcgui.Dialog().ok("Test", "Authenticating")
     # Authenticate the user and return user"s cookie
+    _path = xbmcaddon.Addon().getAddonInfo("path")  # Path to base addon folder
     url = "https://ehfpayments.streamamg.com/api/v1/session/start/?lang=en"
-    payload = {"emailaddress": creds.username, "password": creds.password}
+    payload = {"emailaddress": xbmcaddon.Addon().getSetting("username"), "password": xbmcaddon.Addon().getSetting("password")}
     resp = json.loads(requests.post(url, json=payload).content)
-    if not os.path.exists(_profile):
-        os.makedirs(_profile)
-    f = open(_profile + "cookie.secret", "w")
-    f.write(resp["CurrentCustomerSession"]["Id"])
-    f.close()
-    return resp["CurrentCustomerSession"]["Id"]
+    f = open(_path + "/resources/cookie.secret", "w")
+    try:
+        f.write(resp["CurrentCustomerSession"]["Id"])
+        f.close()
+        return resp["CurrentCustomerSession"]["Id"]
+    except KeyError:
+        f.close()
+        return None
 
 def router(paramstring):
     # Parse the parameters and execute functions based on results
@@ -185,6 +194,9 @@ def router(paramstring):
             list_subcategory(params["category"])
         elif params["action"] == "filtering":
             list_filtering_options(params["filter_condition"])
+        elif params["action"] == "settings":
+            # Open settings dialog to set email and password
+            xbmcaddon.Addon().openSettings()
         else:
             raise ValueError("Invalid paramstring: {0}!".format(paramstring))
     else:

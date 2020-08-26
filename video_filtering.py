@@ -19,6 +19,7 @@ def get_videos_category(category, page=0):
     url = "https://ehf-cm.streamamg.com/api/v1/cb6b9d25-5ab3-467a-a5b7-a662b0ddcb3d/BH9t1g7ARQzD2TgcHm9ZosHSES3ADnSpMv60i4pfRqtcti2MeM/\
         30b60d3d-7c68-4215-8b5c-b68ef503980f/en/feed/a9364863-def1-4be6-83c1-c91a632b66a4/sections//search?section=3002115e-7aa8-4ecb-\
             8485-4146612af205&query=(metaData.competition:(" + category + ")%20AND%20metaData.category:(Full%20games))&pageIndex=" + str(page) + "&pageSize=24"
+
     result = json.loads(requests.get(url).content)
     games = []
     i = 0
