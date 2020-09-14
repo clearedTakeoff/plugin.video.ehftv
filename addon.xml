@@ -14,5 +14,9 @@ provider-name="clearedTakeoff">
   <summary lang="en">EHFtv on Kodi</summary>
   <description lang="en_GB">Watch EHFtv videos on Kodi.</description>
   <disclaimer lang="en_GB">A free account is required and can be obtained at https://ehftv.com</disclaimer>
+  <assets>
+    <icon>resources/ehf.jpg</icon>
+    <fanart></fanart>
+  </assets>
 </extension>
 </addon>

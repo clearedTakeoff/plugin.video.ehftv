@@ -11,8 +11,30 @@ def filter_videos(filter_condition, value, page):
         return get_videos_category(value, page)
     elif filter_condition == "team":
         return get_videos_team(value, page)
+    elif filter_condition == "live":
+        return get_live_fixtures()
     #elif filter_condition == "team":
         
+def get_live_fixtures():
+    url = "https://api.streamplay.streamamg.com/fixtures/handball/p/3001394?q=&offset=0&limit=24"
+    result = json.loads(requests.get(url).content)
+    games = []
+    for entry in result["fixtures"]:
+        if len(entry["mediaData"]) > 0:
+            live_status = json.loads(requests.get(entry["mediaData"][0]["isLiveUrl"]).content)["isLive"]
+        else:
+            live_status = False
+        new_entry = {
+            "name": entry["name"],
+            "video_id": entry["mediaData"][0]["entryId"] if len(entry["mediaData"]) > 0 else "not_available",
+            "date": entry["startDate"],
+            "thumbnail": entry["thumbnailFlavors"]["640"],
+            "genre": entry["competition"]["name"],
+            "live_status": live_status
+        }
+        games.append(new_entry)
+    return games
+    
 
 def get_videos_category(category, page=0):
     # Filter available videos by category and parse data

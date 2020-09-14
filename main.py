@@ -22,7 +22,7 @@ def get_url(**kwargs):
 
 def get_categories():
     # Get categories
-    return ["Live", "Archive"]
+    return [("Live", "live_listing"), ("Archive", "sublisting")]
 
 def get_team_list():
     url = "https://wp-ehf.streamamg.com/wp-json/wpa/v1/common_field?slug=common-fields"
@@ -42,7 +42,7 @@ def get_comp_list():
 
 def get_subcategory(category):
     if category == "Live":
-        return [("Nothing here at the moment", None)]
+        return list_live_videos()
     elif category == "Archive":
         return [("Filter by team", "team"), ("Filter by Competition", "comp"), ("Search", "search")]
     elif category == "comp":
@@ -84,12 +84,12 @@ def list_categories():
     xbmcplugin.setContent(_handle, "videos")
     categories = get_categories()
     for category in categories:
-        list_item = xbmcgui.ListItem(label=category)
-        list_item.setInfo("video", {"title": category,
-                                    "genre": category,
+        list_item = xbmcgui.ListItem(label=category[0])
+        list_item.setInfo("video", {"title": category[0],
+                                    "genre": category[0],
                                     "mediatype": "video"})
         # Recursion: plugin://plugin.video.ehftv/?action=listing&category=archive
-        url = get_url(action="sublisting", category=category)
+        url = get_url(action=category[1], category=category[0])
         is_folder = True
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     
@@ -128,6 +128,35 @@ def list_videos(filter_condition, value, page=0):
     list_item.setInfo("video", {"title": "Next page"})
     url = get_url(action="listing", filter_condition=filter_condition, value=value, page=int(page) + 1)
     xbmcplugin.addDirectoryItem(_handle, url, list_item, True)
+    xbmcplugin.endOfDirectory(_handle)
+    
+def list_live_videos():
+    # List available videos of a category
+    xbmcplugin.setPluginCategory(_handle, "Live matches")
+    xbmcplugin.setContent(_handle, "videos")
+    videos = video_filtering.filter_videos("live", None, 0)
+    for video in videos:
+        y, m, d = video["date"].split("T")[0].split("-")
+        start_time = video["date"].split("T")[1].split(":")
+        date_string = d + "." + m + "." + y
+        status = ""
+        if video["video_id"] == "not_available":
+            status += " - Not available in your region"
+        elif video["live_status"] is True:
+            status += " - Live now!"
+        else:
+            status += " - Scheduled"
+        list_item = xbmcgui.ListItem(label=video["name"] + " (" + date_string + ")" + status, thumbnailImage=video["thumbnail"])
+        list_item.setInfo("video", {"title": video["name"],
+                                    "genre": video["genre"],
+                                    "premiered": video["date"].split("T")[0],
+                                    "mediatype": "video",
+                                    "plot": "Starting at " + start_time[0] + ":" + start_time[1] + " GMT"})
+        list_item.setProperty("IsPlayable", "true")
+        # TODO: Add thumbnails, more info...
+        url = get_url(action="play", video=video["video_id"])
+        is_folder = False
+        xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     xbmcplugin.endOfDirectory(_handle)
 
 def obtainKSCookie(content_id, session_cookie):
@@ -190,6 +219,8 @@ def router(paramstring):
             list_videos(params["filter_condition"], params["value"], params["page"])
         elif params["action"] == "play":
             play_video(params["video"])
+        elif params["action"] == "live_listing":
+            list_live_videos()
         elif params["action"] == "sublisting":
             list_subcategory(params["category"])
         elif params["action"] == "filtering":
