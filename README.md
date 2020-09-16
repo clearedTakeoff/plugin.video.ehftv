@@ -1,6 +1,6 @@
 # EHFtv Kodi plugin
 
-![Logo](https://raw.githubusercontent.com/clearedTakeoff/plugin.video.ehftv/master/resources/ehf.jpg "EHFtv")
+<img src="https://raw.githubusercontent.com/clearedTakeoff/plugin.video.ehftv/master/resources/ehf.jpg" alt="Logo" width="300"/>
 
 
 A very basic plugin bringing the content from [EHF TV](https://ehftv.com) into your own Kodi media center.
