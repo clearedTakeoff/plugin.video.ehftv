@@ -20,7 +20,7 @@ def get_live_fixtures():
     result = json.loads(requests.get(url).content)
     games = []
     for entry in result["fixtures"]:
-        if len(entry["mediaData"]) > 0:
+        if len(entry["mediaData"]) > 0 and entry["mediaData"][0]["isLiveUrl"] is not None:
             live_status = json.loads(requests.get(entry["mediaData"][0]["isLiveUrl"]).content)["isLive"]
         else:
             live_status = False
