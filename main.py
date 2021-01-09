@@ -22,7 +22,7 @@ def get_url(**kwargs):
 
 def get_categories():
     # Get categories
-    return [("Live", "live_listing"), ("Archive", "sublisting")]
+    return [("Live", "live_listing"), ("Live (Alternate version)", "live_listing_alt"), ("Archive", "sublisting")]
 
 def get_team_list():
     url = "https://wp-ehf.streamamg.com/wp-json/wpa/v1/common_field?slug=common-fields"
@@ -130,8 +130,9 @@ def list_videos(filter_condition, value, page=0):
     xbmcplugin.addDirectoryItem(_handle, url, list_item, True)
     xbmcplugin.endOfDirectory(_handle)
     
-def list_live_videos():
+def list_live_videos(alt=False):
     # List available videos of a category
+    # alt = True - used when m3u8 needs to be saved
     xbmcplugin.setPluginCategory(_handle, "Live matches")
     xbmcplugin.setContent(_handle, "videos")
     videos = video_filtering.filter_videos("live", None, 0)
@@ -153,8 +154,7 @@ def list_live_videos():
                                     "mediatype": "video",
                                     "plot": "Starting at " + start_time[0] + ":" + start_time[1] + " GMT"})
         list_item.setProperty("IsPlayable", "true")
-        # TODO: Add thumbnails, more info...
-        url = get_url(action="play", video=video["video_id"])
+        url = get_url(action="play", video=video["video_id"], alt=alt)
         is_folder = False
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     xbmcplugin.endOfDirectory(_handle)
@@ -169,7 +169,22 @@ def obtainKSCookie(content_id, session_cookie):
         raise ValueError
     return user_data["KSession"]
 
-def play_video(path):
+def save_modified_m3u8(url):
+    req = requests.get(url)
+    m3u8 = req.content.decode().split("\n")
+    lines_to_remove = []
+    for i, line in enumerate(m3u8):
+        if ".net:443" in line:
+            lines_to_remove.append(i - 1)
+            lines_to_remove.append(i)
+    lines_to_remove = lines_to_remove[1:]
+    m3u8 = [line for i, line in enumerate(m3u8) if i not in lines_to_remove]
+    f = open(_profile + "stream.m3u8", "w")
+    f.write("\n".join(m3u8))
+    f.close()
+
+def play_video(path, alternate=False):
+    # If alternate is true it will first download the m3u8 stream and remove the entries containing :443 (maybe useful?)
     # This executes after selecting the stream/video
     # path = id string of the selected video
     try:
@@ -191,17 +206,22 @@ def play_video(path):
         # If we still didn't get KS then credentials are probably wrong
         xbmcgui.Dialog().ok("Something went wrong", "Could not authenticate the user. Check your email and password")
         return
-    # Build link to the playlist and pass it to the player
-    play_item = xbmcgui.ListItem(path="https://open.http.mp.streamamg.com/p/3001394/sp/300139400/playManifest/entryId/" + path + "/format/applehttp/protocol/https/a.m3u8?ks=" + ks)
+    
+    if alternate:
+        # Get m3u8 delete lines refering to :443 port and save it
+        save_modified_m3u8("https://open.http.mp.streamamg.com/p/3001394/sp/300139400/playManifest/entryId/" + path + "/format/applehttp/protocol/https/a.m3u8?ks=" + ks)
+        play_item = xbmcgui.ListItem(path=_profile + "stream.m3u8")
+    else:
+        # Build link to the playlist and pass it to the player
+        play_item = xbmcgui.ListItem(path="https://open.http.mp.streamamg.com/p/3001394/sp/300139400/playManifest/entryId/" + path + "/format/applehttp/protocol/https/a.m3u8?ks=" + ks)
     xbmcplugin.setResolvedUrl(_handle, True, listitem=play_item)
 
 def authenticate():
     # Authenticate the user and return user"s cookie
-    _path = xbmcaddon.Addon().getAddonInfo("path")  # Path to base addon folder
     url = "https://ehfpayments.streamamg.com/api/v1/session/start/?lang=en"
     payload = {"emailaddress": xbmcaddon.Addon().getSetting("username"), "password": xbmcaddon.Addon().getSetting("password")}
     resp = json.loads(requests.post(url, json=payload).content)
-    f = open(_path + "/resources/cookie.secret", "w")
+    f = open(_profile + "cookie.secret", "w")
     try:
         f.write(resp["CurrentCustomerSession"]["Id"])
         f.close()
@@ -218,9 +238,11 @@ def router(paramstring):
             # List available videos of category
             list_videos(params["filter_condition"], params["value"], params["page"])
         elif params["action"] == "play":
-            play_video(params["video"])
+            play_video(params["video"], params["alt"])
         elif params["action"] == "live_listing":
             list_live_videos()
+        elif params["action"] == "live_listing_alt":
+            list_live_videos(True)
         elif params["action"] == "sublisting":
             list_subcategory(params["category"])
         elif params["action"] == "filtering":
