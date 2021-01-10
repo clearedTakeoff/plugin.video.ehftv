@@ -120,8 +120,9 @@ def list_videos(filter_condition, value, page=0):
                                     "premiered": video["date"].split("T")[0],
                                     "mediatype": "video"})
         list_item.setProperty("IsPlayable", "true")
-        # TODO: Add thumbnails, more info...
-        url = get_url(action="play", video=video["video_id"])
+        # TODO: Make alternate way of playing optional for archive videos too.
+        # alt=True fixed for now
+        url = get_url(action="play", video=video["video_id"], alt=True)
         is_folder = False
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
     list_item = xbmcgui.ListItem(label="Next page")
