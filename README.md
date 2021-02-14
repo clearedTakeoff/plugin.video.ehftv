@@ -21,10 +21,10 @@ If you're having problems using the plugin, please create an issue here.
 __Q: When selecting the video (or livestream) the loading circle appears for a second but then nothing happens.__  
 From my (very limited) testing I've found that this can happen if *InputStream Adaptive* add-on is not installed (or enabled) in Kodi. Follow instructions on [this link](https://kodi.wiki/view/Add-on:InputStream_Adaptive) and see if that fixes the issue.
 
-__Q: All of the matches under live section show up as not available in my region.__  
-The live section shows both the currently live matches and the upcoming scheduled matches. If the matches are still are still too far away then it could (falsely) appear as not available for you but it should change once the date of the matches comes closer. (I haven't been able to determine yet how close to the date it changes though)
-
 __Q: Some of the matches don't appear/disappear from the live section.__  
-This usually happens if a match is blocked in your region because of TV rights. This means that the *not available in your region* for the future matches might not be the most accurate (see also the paragraph above).
+This usually happens if a match is blocked in your region because of TV rights.
 
 *Note:* I've encountered some matches before where I wasn't able to watch them live even though none of my local TV channels were broadcasting it. Unfortunately this is out of my reach and I can't help with that.
+
+__Q: What do Live and Live (Alternate) categories mean?__  
+This is a temporary change for those cases where playlist contains link to streams on different domains causing issues with Kodi and ffmpeg. If streams under _Live_ category aren't working for you, try with _Live (Alternate)_ category.

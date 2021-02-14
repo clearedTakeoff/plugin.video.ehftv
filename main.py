@@ -120,8 +120,6 @@ def list_videos(filter_condition, value, page=0):
                                     "premiered": video["date"].split("T")[0],
                                     "mediatype": "video"})
         list_item.setProperty("IsPlayable", "true")
-        # TODO: Make alternate way of playing optional for archive videos too.
-        # alt=True fixed for now
         url = get_url(action="play", video=video["video_id"], alt=True)
         is_folder = False
         xbmcplugin.addDirectoryItem(_handle, url, list_item, is_folder)
@@ -143,7 +141,7 @@ def list_live_videos(alt=False):
         date_string = d + "." + m + "." + y
         status = ""
         if video["video_id"] == "not_available":
-            status += " - Not available in your region"
+            status += " - Scheduled"
         elif video["live_status"] is True:
             status += " - Live now!"
         else:
@@ -171,6 +169,7 @@ def obtainKSCookie(content_id, session_cookie):
     return user_data["KSession"]
 
 def save_modified_m3u8(url):
+    custom_header = {"User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0"}
     req = requests.get(url)
     m3u8 = req.content.decode().split("\n")
     lines_to_remove = []
@@ -178,6 +177,8 @@ def save_modified_m3u8(url):
         if ".net:443" in line:
             lines_to_remove.append(i - 1)
             lines_to_remove.append(i)
+        elif line.startswith("http"):
+            m3u8[i] = "{}|User-agent={}".format(line, custom_header["User-Agent"])
     lines_to_remove = lines_to_remove[1:]
     m3u8 = [line for i, line in enumerate(m3u8) if i not in lines_to_remove]
     f = open(_profile + "stream.m3u8", "w")
@@ -208,7 +209,7 @@ def play_video(path, alternate=False):
         xbmcgui.Dialog().ok("Something went wrong", "Could not authenticate the user. Check your email and password")
         return
     
-    if alternate:
+    if alternate is True:
         # Get m3u8 delete lines refering to :443 port and save it
         save_modified_m3u8("https://open.http.mp.streamamg.com/p/3001394/sp/300139400/playManifest/entryId/" + path + "/format/applehttp/protocol/https/a.m3u8?ks=" + ks)
         play_item = xbmcgui.ListItem(path=_profile + "stream.m3u8")
