@@ -209,7 +209,7 @@ def play_video(path, alternate=False):
         xbmcgui.Dialog().ok("Something went wrong", "Could not authenticate the user. Check your email and password")
         return
     
-    if alternate is True:
+    if eval(alternate) is True:
         # Get m3u8 delete lines refering to :443 port and save it
         save_modified_m3u8("https://open.http.mp.streamamg.com/p/3001394/sp/300139400/playManifest/entryId/" + path + "/format/applehttp/protocol/https/a.m3u8?ks=" + ks)
         play_item = xbmcgui.ListItem(path=_profile + "stream.m3u8")
