@@ -13,7 +13,6 @@ def filter_videos(filter_condition, value, page):
         return get_videos_team(value, page)
     elif filter_condition == "live":
         return get_live_fixtures()
-    #elif filter_condition == "team":
         
 def get_live_fixtures():
     url = "https://api.streamplay.streamamg.com/fixtures/handball/p/3001394?q=&offset=0&limit=24"
